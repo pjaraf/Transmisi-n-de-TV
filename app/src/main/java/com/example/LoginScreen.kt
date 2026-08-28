@@ -160,6 +160,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 }
                                 isLoading = false
                                 if (success) {
+                                    UserSession.username = username.trim()
+                                    UserSession.password = password.trim()
                                     onLoginSuccess()
                                 } else {
                                     errorMessage = "Usuario o contraseña incorrectos"

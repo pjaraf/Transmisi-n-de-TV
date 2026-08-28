@@ -112,6 +112,8 @@ dependencies {
   // implementation(libs.googleid)
   implementation(libs.firebase.appcheck.recaptcha)
   implementation(libs.firebase.appcheck.debug)
+  implementation("androidx.media3:media3-exoplayer:1.3.1")
+  implementation("androidx.media3:media3-ui:1.3.1")
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)

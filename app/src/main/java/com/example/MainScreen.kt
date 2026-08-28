@@ -5,27 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,22 +19,8 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,10 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.ui.theme.AccentRed
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.NavRailBackground
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,17 +55,6 @@ val navItems = listOf(
     NavItem("Search", Icons.Filled.Search)
 )
 
-data class MediaItem(val title: String, val imageUrl: String, val streamUrl: String = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
-
-val featuredMedia = listOf(
-    MediaItem("Conexiones Perdidas", "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg"),
-    MediaItem("Batman Inicia", "https://image.tmdb.org/t/p/w500/aAwwqG1n5eGj483v29u6Q8YmYyX.jpg"),
-    MediaItem("Arsenal Military", "https://image.tmdb.org/t/p/w500/6yK2bO2sO4jC9V46jI7jRz9q7E5.jpg"),
-    MediaItem("Ted", "https://image.tmdb.org/t/p/w500/y6wG1z8r1yO22sR2M459pQZcQzZ.jpg"),
-    MediaItem("Code Name: The", "https://image.tmdb.org/t/p/w500/1X7vow16X7CnCoexXh4H4F2yDJv.jpg"),
-    MediaItem("Chicha tu madre", "https://image.tmdb.org/t/p/w500/8Gxv8gP5dEqZFAEQQnGIKqQ8nS2.jpg")
-)
-
 @Composable
 fun NetflixBackground() {
     NetflixCollageBackground()
@@ -107,6 +65,22 @@ fun MainScreen() {
     val configuration = LocalConfiguration.current
     val isLargeScreen = configuration.screenWidthDp > 600
     var selectedIndex by remember { mutableIntStateOf(1) } // Default to 'Live'
+
+    val scope = rememberCoroutineScope()
+    var liveList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
+    var vodList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
+    var seriesList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            isLoading = true
+            liveList = XtreamRepository.getLiveStreams()
+            vodList = XtreamRepository.getVodStreams()
+            seriesList = XtreamRepository.getSeries()
+            isLoading = false
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NetflixBackground()
@@ -138,9 +112,53 @@ fun MainScreen() {
                 ) {
                     TopBar()
                     Spacer(modifier = Modifier.height(24.dp))
-                    FeaturedSection(isLargeScreen)
-                    Spacer(modifier = Modifier.height(32.dp))
-                    ContentList("Mi Lista y Contenido Destacado", featuredMedia)
+
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = AccentRed)
+                        }
+                    } else {
+                        when (selectedIndex) {
+                            0 -> { // Home
+                                FeaturedSection(liveList.firstOrNull())
+                                Spacer(modifier = Modifier.height(32.dp))
+                                if (liveList.isNotEmpty()) {
+                                    ContentList("Canales en Vivo", liveList.take(20))
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                }
+                                if (vodList.isNotEmpty()) {
+                                    ContentList("Películas (VOD)", vodList.take(20))
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                }
+                                if (seriesList.isNotEmpty()) {
+                                    ContentList("Series", seriesList.take(20))
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                }
+                            }
+                            1 -> { // Live TV
+                                ContentList("Canales en Vivo", liveList)
+                            }
+                            2 -> { // Shows / Series
+                                ContentList("Series de TV", seriesList)
+                            }
+                            3 -> { // Movies / VOD
+                                ContentList("Películas", vodList)
+                            }
+                            else -> {
+                                Text(
+                                    text = "Sección en desarrollo",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
@@ -226,7 +244,7 @@ fun TopBar() {
 }
 
 @Composable
-fun FeaturedSection(isLargeScreen: Boolean = false) {
+fun FeaturedSection(featuredItem: XtreamItem?) {
     val context = LocalContext.current
 
     Row(
@@ -235,19 +253,21 @@ fun FeaturedSection(isLargeScreen: Boolean = false) {
             .height(280.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Live TV Panel
+        // Featured Live / Stream Panel
         Box(
             modifier = Modifier
                 .weight(1.5f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
                 .focusableItem(onClick = {
-                    VlcPlayerHelper.playUrl(context, "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "En Vivo - Ciclismo")
+                    if (featuredItem != null) {
+                        VlcPlayerHelper.playUrl(context, featuredItem.streamUrl, featuredItem.title)
+                    }
                 })
         ) {
             AsyncImage(
-                model = "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
-                contentDescription = "Live TV",
+                model = featuredItem?.imageUrl ?: "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
+                contentDescription = "Featured",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -261,76 +281,36 @@ fun FeaturedSection(isLargeScreen: Boolean = false) {
                     .align(Alignment.TopStart)
             ) {
                 Text(
-                    text = "EN VIVO",
+                    text = "DESTACADO IPTV",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelMedium
                 )
             }
             
-            // Channel/Info overlay (bottom left)
+            // Info overlay
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(Color.Black.copy(alpha = 0.6f))
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "CICLISMO | LA VUELTA 1.Tadej Pogacar (Eslovenia)",
+                    text = featuredItem?.title ?: "Transmisión en vivo",
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
             }
         }
-
-        // Premieres Panel
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(16.dp))
-                .focusableItem(onClick = {
-                    VlcPlayerHelper.playUrl(context, "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4", "Estrenos 2026 - Ted")
-                })
-        ) {
-            AsyncImage(
-                model = "https://image.tmdb.org/t/p/original/y6wG1z8r1yO22sR2M459pQZcQzZ.jpg",
-                contentDescription = "Estrenos 2026",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            Text(
-                text = "Estrenos 2026",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
-                    .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-
-            Text(
-                text = "ted",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            )
-        }
     }
 }
 
 @Composable
-fun ContentList(title: String, items: List<MediaItem>) {
+fun ContentList(title: String, items: List<XtreamItem>) {
     Column {
         Text(
             text = title,
@@ -352,7 +332,7 @@ fun ContentList(title: String, items: List<MediaItem>) {
 }
 
 @Composable
-fun MediaCard(item: MediaItem) {
+fun MediaCard(item: XtreamItem) {
     val context = LocalContext.current
     Box(
         modifier = Modifier
@@ -364,7 +344,7 @@ fun MediaCard(item: MediaItem) {
             })
     ) {
         AsyncImage(
-            model = item.imageUrl,
+            model = item.imageUrl.ifBlank { "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg" },
             contentDescription = item.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
@@ -374,7 +354,7 @@ fun MediaCard(item: MediaItem) {
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(Color.Black.copy(alpha = 0.7f))
                 .padding(8.dp)
         ) {
              Text(
