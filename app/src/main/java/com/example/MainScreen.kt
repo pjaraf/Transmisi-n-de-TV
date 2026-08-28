@@ -125,18 +125,14 @@ fun MainScreen() {
                     } else {
                         when (selectedIndex) {
                             0 -> { // Home
-                                FeaturedSection(liveList.firstOrNull())
+                                val featuredLive = liveList.firstOrNull()
+                                val featured2026 = (vodList + seriesList).firstOrNull { it.title.contains("2026", ignoreCase = true) } ?: vodList.firstOrNull()
+                                val list2026 = (vodList + seriesList).filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList + seriesList }
+
+                                FeaturedSection(featuredLive, featured2026)
                                 Spacer(modifier = Modifier.height(32.dp))
-                                if (liveList.isNotEmpty()) {
-                                    ContentList("Canales en Vivo", liveList.take(20))
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                }
-                                if (vodList.isNotEmpty()) {
-                                    ContentList("Películas (VOD)", vodList.take(20))
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                }
-                                if (seriesList.isNotEmpty()) {
-                                    ContentList("Series", seriesList.take(20))
+                                if (list2026.isNotEmpty()) {
+                                    ContentList("Mi Lista y Contenido Destacado", list2026)
                                     Spacer(modifier = Modifier.height(24.dp))
                                 }
                             }
@@ -144,10 +140,12 @@ fun MainScreen() {
                                 ContentList("Canales en Vivo", liveList)
                             }
                             2 -> { // Shows / Series
-                                ContentList("Series de TV", seriesList)
+                                val series2026 = seriesList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { seriesList }
+                                ContentList("Series 2026", series2026)
                             }
                             3 -> { // Movies / VOD
-                                ContentList("Películas", vodList)
+                                val movies2026 = vodList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList }
+                                ContentList("Películas 2026", movies2026)
                             }
                             else -> {
                                 Text(
@@ -244,7 +242,7 @@ fun TopBar() {
 }
 
 @Composable
-fun FeaturedSection(featuredItem: XtreamItem?) {
+fun FeaturedSection(liveItem: XtreamItem?, vod2026Item: XtreamItem?) {
     val context = LocalContext.current
 
     Row(
@@ -253,21 +251,21 @@ fun FeaturedSection(featuredItem: XtreamItem?) {
             .height(280.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Featured Live / Stream Panel
+        // Left: Live TV Panel
         Box(
             modifier = Modifier
                 .weight(1.5f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
                 .focusableItem(onClick = {
-                    if (featuredItem != null) {
-                        VlcPlayerHelper.playUrl(context, featuredItem.streamUrl, featuredItem.title)
+                    if (liveItem != null) {
+                        VlcPlayerHelper.playUrl(context, liveItem.streamUrl, liveItem.title)
                     }
                 })
         ) {
             AsyncImage(
-                model = featuredItem?.imageUrl ?: "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
-                contentDescription = "Featured",
+                model = liveItem?.imageUrl ?: "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
+                contentDescription = "Live TV",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -281,7 +279,7 @@ fun FeaturedSection(featuredItem: XtreamItem?) {
                     .align(Alignment.TopStart)
             ) {
                 Text(
-                    text = "DESTACADO IPTV",
+                    text = "EN VIVO",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelMedium
@@ -298,12 +296,79 @@ fun FeaturedSection(featuredItem: XtreamItem?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = featuredItem?.title ?: "Transmisión en vivo",
+                    text = liveItem?.title ?: "Transmisión en vivo",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
+            }
+        }
+
+        // Right: Estrenos 2026 Panel
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            Text(
+                text = "Estrenos 2026",
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .focusableItem(onClick = {
+                        if (vod2026Item != null) {
+                            VlcPlayerHelper.playUrl(context, vod2026Item.streamUrl, vod2026Item.title)
+                        }
+                    })
+            ) {
+                AsyncImage(
+                    model = vod2026Item?.imageUrl ?: "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg",
+                    contentDescription = "Estrenos 2026",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // 2026 Badge
+                Box(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .background(AccentRed, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .align(Alignment.TopStart)
+                ) {
+                    Text(
+                        text = "2026",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+
+                // Info overlay
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = vod2026Item?.title ?: "Estreno 2026",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
