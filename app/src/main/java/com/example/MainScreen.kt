@@ -97,21 +97,41 @@ val featuredMedia = listOf(
 )
 
 @Composable
+fun NetflixBackground() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.82f))
+        )
+    }
+}
+
+@Composable
 fun MainScreen() {
     val configuration = LocalConfiguration.current
     val isLargeScreen = configuration.screenWidthDp > 600
     var selectedIndex by remember { mutableIntStateOf(1) } // Default to 'Live' to match screenshot roughly
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = DarkBackground,
-        contentWindowInsets = WindowInsets.safeDrawing,
-        bottomBar = {
-            if (!isLargeScreen) {
-                AppBottomNavigation(selectedIndex) { selectedIndex = it }
+    Box(modifier = Modifier.fillMaxSize()) {
+        NetflixBackground()
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing,
+            bottomBar = {
+                if (!isLargeScreen) {
+                    AppBottomNavigation(selectedIndex) { selectedIndex = it }
+                }
             }
-        }
-    ) { innerPadding ->
+        ) { innerPadding ->
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -136,6 +156,7 @@ fun MainScreen() {
             }
         }
     }
+}
 }
 
 @Composable

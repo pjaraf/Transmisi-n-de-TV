@@ -38,7 +38,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         // Background Movie Poster Collage / Grid
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
-                model = "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg",
+                model = "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -47,7 +47,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.75f))
+                    .background(Color.Black.copy(alpha = 0.82f))
             )
         }
 
