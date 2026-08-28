@@ -11,7 +11,7 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Permiso necesario para crear la Release y subir el APK
+      contents: write
 
     steps:
       - name: Checkout Code
@@ -25,18 +25,21 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.10.2'
 
       - name: Prepare environment (Keystore & Env)
         run: |
-          base64 -d debug.keystore.base64 > debug.keystore
-          cp .env.example .env
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+          touch .env
+          if [ -f .env.example ]; then cp .env.example .env; fi
 
       - name: Generate Version Tag
         id: version_tag
         run: echo "tag=v$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
 
       - name: Build Debug APK
-        run: chmod +x gradlew && ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName="${{ steps.version_tag.outputs.tag }}"
+        run: gradle assembleDebug -PversionCode=${{ github.run_number }} -PversionName="${{ steps.version_tag.outputs.tag }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
