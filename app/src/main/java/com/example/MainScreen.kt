@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
@@ -70,7 +71,11 @@ fun MainScreen() {
     var isFullScreenLive by remember { mutableStateOf(false) }
     var currentLiveIndex by remember { mutableIntStateOf(0) }
 
-    // Overlays when in full screen Live TV
+    // Selected Movie / VOD Detail view state
+    var selectedMovieItem by remember { mutableStateOf<XtreamItem?>(null) }
+    var isFullScreenMovie by remember { mutableStateOf(false) }
+
+    // Overlays when in full screen Live or Movie
     var showChannelsSidebar by remember { mutableStateOf(false) }
     var showCategoriesSidebar by remember { mutableStateOf(false) }
 
@@ -98,122 +103,121 @@ fun MainScreen() {
             .fillMaxSize()
             .background(Color(0xFF141414))
     ) {
-        if (isFullScreenLive) {
-            val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Expanded Fullscreen Video Player
-                LiveFullScreenPlayer(
-                    liveItem = activeLive,
-                    onToggleChannels = { showChannelsSidebar = !showChannelsSidebar },
-                    onToggleCategories = { showCategoriesSidebar = !showCategoriesSidebar },
-                    onExitFullScreen = { isFullScreenLive = false }
-                )
+        when {
+            isFullScreenLive -> {
+                val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LiveFullScreenPlayer(
+                        liveItem = activeLive,
+                        onToggleChannels = { showChannelsSidebar = !showChannelsSidebar },
+                        onToggleCategories = { showCategoriesSidebar = !showCategoriesSidebar },
+                        onExitFullScreen = { isFullScreenLive = false }
+                    )
 
-                // Left Floating Sidebar: Channels
-                if (showChannelsSidebar) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 24.dp)
-                            .width(320.dp)
-                            .fillMaxHeight(0.85f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.9f))
-                            .padding(16.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text = "Canales en Vivo",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(liveList.size) { index ->
-                                    val channel = liveList[index]
-                                    val isCurrent = index == currentLiveIndex
-                                    Surface(
-                                        color = if (isCurrent) AccentRed else Color(0xFF222222),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .focusableItem(onClick = {
-                                                currentLiveIndex = index
-                                                showChannelsSidebar = false
-                                            })
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                    if (showChannelsSidebar) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 24.dp)
+                                .width(320.dp)
+                                .fillMaxHeight(0.85f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.Black.copy(alpha = 0.9f))
+                                .padding(16.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Text(
+                                    text = "Canales en Vivo",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(liveList.size) { index ->
+                                        val channel = liveList[index]
+                                        val isCurrent = index == currentLiveIndex
+                                        Surface(
+                                            color = if (isCurrent) AccentRed else Color(0xFF222222),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusableItem(onClick = {
+                                                    currentLiveIndex = index
+                                                    showChannelsSidebar = false
+                                                })
                                         ) {
-                                            Text(
-                                                text = channel.title,
-                                                color = Color.White,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                maxLines = 1
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = channel.title,
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // Right Floating Sidebar: Categories / Quick Navigation
-                if (showCategoriesSidebar) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 24.dp)
-                            .width(280.dp)
-                            .fillMaxHeight(0.7f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.9f))
-                            .padding(16.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text = "Categorías",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(navItems.size) { index ->
-                                    val item = navItems[index]
-                                    Surface(
-                                        color = Color(0xFF222222),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .focusableItem(onClick = {
-                                                showCategoriesSidebar = false
-                                                isFullScreenLive = false
-                                                selectedIndex = index
-                                            })
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    if (showCategoriesSidebar) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 24.dp)
+                                .width(280.dp)
+                                .fillMaxHeight(0.7f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.Black.copy(alpha = 0.9f))
+                                .padding(16.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Text(
+                                    text = "Categorías",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(navItems.size) { index ->
+                                        val item = navItems[index]
+                                        Surface(
+                                            color = Color(0xFF222222),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusableItem(onClick = {
+                                                    showCategoriesSidebar = false
+                                                    isFullScreenLive = false
+                                                    selectedIndex = index
+                                                })
                                         ) {
-                                            Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                            Text(
-                                                text = item.title,
-                                                color = Color.White,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                                Text(
+                                                    text = item.title,
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -222,80 +226,161 @@ fun MainScreen() {
                     }
                 }
             }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Floating Floating Sidebar (Left)
-                FloatingNavigationSidebar(selectedIndex) { selectedIndex = it }
+            isFullScreenMovie -> {
+                val movie = selectedMovieItem ?: vodList.firstOrNull()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LiveFullScreenPlayer(
+                        liveItem = movie,
+                        onToggleChannels = { showChannelsSidebar = !showChannelsSidebar },
+                        onToggleCategories = { showCategoriesSidebar = !showCategoriesSidebar },
+                        onExitFullScreen = { isFullScreenMovie = false }
+                    )
 
-                // Main Content Area
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 32.dp, vertical = 24.dp)
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (isLoading) {
+                    if (showCategoriesSidebar) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp),
-                            contentAlignment = Alignment.Center
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 24.dp)
+                                .width(280.dp)
+                                .fillMaxHeight(0.7f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.Black.copy(alpha = 0.9f))
+                                .padding(16.dp)
                         ) {
-                            CircularProgressIndicator(color = AccentRed)
-                        }
-                    } else {
-                        when (selectedIndex) {
-                            0 -> { // Home
-                                val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
-                                val list2026 = (vodList + seriesList).filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList + seriesList }
-
-                                FeaturedSection(
-                                    liveItem = activeLive,
-                                    list2026 = list2026,
-                                    onExpandLive = { isFullScreenLive = true },
-                                    onLiveChanged = { currentLiveIndex = it },
-                                    liveList = liveList
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Text(
+                                    text = "Categorías",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
                                 )
-                                Spacer(modifier = Modifier.height(32.dp))
-                                if (list2026.isNotEmpty()) {
-                                    ContentList("Mi Lista y Contenido Destacado", list2026)
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(navItems.size) { index ->
+                                        val item = navItems[index]
+                                        Surface(
+                                            color = Color(0xFF222222),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusableItem(onClick = {
+                                                    showCategoriesSidebar = false
+                                                    isFullScreenMovie = false
+                                                    selectedMovieItem = null
+                                                    selectedIndex = index
+                                                })
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                                Text(
+                                                    text = item.title,
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                            1 -> { // Live TV
-                                ContentList("Canales en Vivo", liveList)
-                            }
-                            2 -> { // Shows / Series
-                                val series2026 = seriesList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { seriesList }
-                                ContentList("Series 2026", series2026)
-                            }
-                            3 -> { // Movies / VOD
-                                val movies2026 = vodList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList }
-                                ContentList("Películas 2026", movies2026)
-                            }
-                            4 -> { // Search
-                                Text(
-                                    text = "Búsqueda en desarrollo",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    modifier = Modifier.padding(32.dp)
-                                )
-                            }
-                            5 -> { // Settings
-                                Text(
-                                    text = "Ajustes de la cuenta (${UserSession.username})",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    modifier = Modifier.padding(32.dp)
-                                )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+            selectedMovieItem != null -> {
+                MovieDetailView(
+                    item = selectedMovieItem!!,
+                    relatedItems = vodList.ifEmpty { seriesList },
+                    onPlayFullScreen = { isFullScreenMovie = true },
+                    onDismiss = { selectedMovieItem = null },
+                    onItemSelected = { selectedMovieItem = it }
+                )
+            }
+            else -> {
+                Row(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    FloatingNavigationSidebar(selectedIndex) { selectedIndex = it }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 32.dp, vertical = 24.dp)
+                    ) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = AccentRed)
+                            }
+                        } else {
+                            when (selectedIndex) {
+                                0 -> { // Home
+                                    val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
+                                    val list2026 = (vodList + seriesList).filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList + seriesList }
+
+                                    FeaturedSection(
+                                        liveItem = activeLive,
+                                        list2026 = list2026,
+                                        onExpandLive = { isFullScreenLive = true },
+                                        onLiveChanged = { currentLiveIndex = it },
+                                        liveList = liveList,
+                                        onMovieClick = { selectedMovieItem = it }
+                                    )
+                                    Spacer(modifier = Modifier.height(32.dp))
+                                    if (list2026.isNotEmpty()) {
+                                        ContentList("Mi Lista y Contenido Destacado", list2026, onMovieClick = { selectedMovieItem = it })
+                                        Spacer(modifier = Modifier.height(24.dp))
+                                    }
+                                }
+                                1 -> { // Live TV
+                                    ContentList("Canales en Vivo", liveList, onMovieClick = {
+                                        val idx = liveList.indexOf(it)
+                                        if (idx >= 0) currentLiveIndex = idx
+                                        isFullScreenLive = true
+                                    })
+                                }
+                                2 -> { // Shows / Series
+                                    val series2026 = seriesList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { seriesList }
+                                    ContentList("Series 2026", series2026, onMovieClick = { selectedMovieItem = it })
+                                }
+                                3 -> { // Movies / VOD
+                                    val movies2026 = vodList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList }
+                                    ContentList("Películas 2026", movies2026, onMovieClick = { selectedMovieItem = it })
+                                }
+                                4 -> { // Search
+                                    Text(
+                                        text = "Búsqueda en desarrollo",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.padding(32.dp)
+                                    )
+                                }
+                                5 -> { // Settings
+                                    Text(
+                                        text = "Ajustes de la cuenta (${UserSession.username})",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.padding(32.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 }
             }
         }
@@ -342,12 +427,230 @@ fun FloatingNavigationSidebar(selectedIndex: Int, onItemSelected: (Int) -> Unit)
 }
 
 @Composable
+fun MovieDetailView(
+    item: XtreamItem,
+    relatedItems: List<XtreamItem>,
+    onPlayFullScreen: () -> Unit,
+    onDismiss: () -> Unit,
+    onItemSelected: (XtreamItem) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF141414))
+    ) {
+        // Backdrop background image
+        AsyncImage(
+            model = item.imageUrl.ifBlank { "https://image.tmdb.org/t/p/original/8c4a8kE7PizaGQQnditMmI1xbRp.jpg" },
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+        )
+
+        // Dark gradient overlay for readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.75f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(40.dp)
+        ) {
+            // Top row: Info on left, Poster card on right
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp),
+                horizontalArrangement = Arrangement.spacedBy(32.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left info section
+                Column(
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = item.title,
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2
+                        )
+                        // Age badge like "7"
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFF2E7D32), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "7",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "00:00:00 | Comedia",
+                        color = Color(0xFFAAAAAA),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "00:00:00",
+                        color = AccentRed,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Sinopsis: ${item.title} es una excelente producción disponible para reproducir de forma inmediata con la mejor calidad y sin interrupciones.",
+                        color = Color(0xFFDDDDDD),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Action buttons matching the photo
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { onPlayFullScreen() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.focusableItem()
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Pantalla completa", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { /* Subtitles / Audio option */ },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.focusableItem()
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Idioma y subtítulos", color = Color.White)
+                        }
+
+                        IconButton(
+                            onClick = { /* Favorite */ },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF333333))
+                                .focusableItem()
+                        ) {
+                            Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorito", tint = Color.White)
+                        }
+                    }
+                }
+
+                // Right image preview card
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.DarkGray)
+                ) {
+                    AsyncImage(
+                        model = item.imageUrl.ifBlank { "https://image.tmdb.org/t/p/original/8c4a8kE7PizaGQQnditMmI1xbRp.jpg" },
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Related Movies Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Películas relacionadas",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF333333), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "1-${relatedItems.size.coerceAtMost(20)}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(end = 16.dp)
+            ) {
+                items(relatedItems) { relItem ->
+                    MediaCard(relItem, onClick = { onItemSelected(relItem) })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Back button to return
+            Button(
+                onClick = { onDismiss() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444)),
+                modifier = Modifier.focusableItem()
+            ) {
+                Text("Volver al inicio", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
 fun FeaturedSection(
     liveItem: XtreamItem?,
     list2026: List<XtreamItem>,
     onExpandLive: () -> Unit,
     onLiveChanged: (Int) -> Unit,
-    liveList: List<XtreamItem>
+    liveList: List<XtreamItem>,
+    onMovieClick: (XtreamItem) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -417,7 +720,7 @@ fun FeaturedSection(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            RotatingEstrenosPanel(list2026)
+            RotatingEstrenosPanel(list2026, onMovieClick)
         }
     }
 }
@@ -557,11 +860,7 @@ fun LiveFullScreenPlayer(
                         mediaPlayer.attachViews(this, null, false, false)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable {
-                        // Toggle or show UI options
-                    }
+                modifier = Modifier.fillMaxSize()
             )
         }
 
@@ -574,7 +873,8 @@ fun LiveFullScreenPlayer(
         ) {
             Button(
                 onClick = { onToggleChannels() },
-                colors = ButtonDefaults.buttonColors(containerColor = AccentRed)
+                colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                modifier = Modifier.focusableItem()
             ) {
                 Icon(Icons.Default.Tv, contentDescription = "Canales")
                 Spacer(modifier = Modifier.width(8.dp))
@@ -583,7 +883,8 @@ fun LiveFullScreenPlayer(
 
             Button(
                 onClick = { onToggleCategories() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
+                modifier = Modifier.focusableItem()
             ) {
                 Icon(Icons.Default.List, contentDescription = "Categorías")
                 Spacer(modifier = Modifier.width(8.dp))
@@ -592,7 +893,8 @@ fun LiveFullScreenPlayer(
 
             Button(
                 onClick = { onExitFullScreen() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF555555))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF555555)),
+                modifier = Modifier.focusableItem()
             ) {
                 Text("Salir")
             }
@@ -601,8 +903,7 @@ fun LiveFullScreenPlayer(
 }
 
 @Composable
-fun RotatingEstrenosPanel(items: List<XtreamItem>) {
-    val context = LocalContext.current
+fun RotatingEstrenosPanel(items: List<XtreamItem>, onMovieClick: (XtreamItem) -> Unit) {
     var currentIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(items) {
@@ -623,7 +924,7 @@ fun RotatingEstrenosPanel(items: List<XtreamItem>) {
             .clip(RoundedCornerShape(16.dp))
             .focusableItem(onClick = {
                 if (vod2026Item != null) {
-                    VlcPlayerHelper.playUrl(context, vod2026Item.streamUrl, vod2026Item.title)
+                    onMovieClick(vod2026Item)
                 }
             })
     ) {
@@ -670,7 +971,7 @@ fun RotatingEstrenosPanel(items: List<XtreamItem>) {
 }
 
 @Composable
-fun ContentList(title: String, items: List<XtreamItem>) {
+fun ContentList(title: String, items: List<XtreamItem>, onMovieClick: (XtreamItem) -> Unit) {
     Column {
         Text(
             text = title,
@@ -685,23 +986,20 @@ fun ContentList(title: String, items: List<XtreamItem>) {
             contentPadding = PaddingValues(end = 16.dp)
         ) {
             items(items) { item ->
-                MediaCard(item)
+                MediaCard(item, onClick = { onMovieClick(item) })
             }
         }
     }
 }
 
 @Composable
-fun MediaCard(item: XtreamItem) {
-    val context = LocalContext.current
+fun MediaCard(item: XtreamItem, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .width(140.dp)
             .height(200.dp)
             .clip(RoundedCornerShape(12.dp))
-            .focusableItem(onClick = {
-                VlcPlayerHelper.playUrl(context, item.streamUrl, item.title)
-            })
+            .focusableItem(onClick = onClick)
     ) {
         AsyncImage(
             model = item.imageUrl.ifBlank { "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg" },
