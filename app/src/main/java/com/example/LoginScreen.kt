@@ -9,12 +9,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -147,7 +145,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             try {
                                 val success = withContext(Dispatchers.IO) {
                                     val client = OkHttpClient()
-                                    val url = "http://eliteplusec.com:8080/player_api.php?username=${username.trim()}&password=${password.trim()}"
+                                    val url = "${ServerConfig.SERVER_URL}/player_api.php?username=${username.trim()}&password=${password.trim()}"
                                     val request = Request.Builder().url(url).build()
                                     val response = client.newCall(request).execute()
                                     val body = response.body?.string()
@@ -168,12 +166,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 }
                             } catch (e: Exception) {
                                 isLoading = false
-                                // Fallback for local testing or network issues if user wants to enter anyway
-                                if (username.isNotBlank() && password.isNotBlank()) {
-                                    onLoginSuccess()
-                                } else {
-                                    errorMessage = "Error de conexión con el servidor"
-                                }
+                                errorMessage = "Error de conexión o credenciales inválidas"
                             }
                         }
                     },
@@ -219,21 +212,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // Footer Signup
-                Row {
-                    Text(
-                        text = "Servidor: ",
-                        color = Color(0xFF737373),
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "http://eliteplusec.com:8080",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
 
                 // reCAPTCHA notice
                 Text(

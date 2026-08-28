@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -85,10 +86,10 @@ val navItems = listOf(
     NavItem("Search", Icons.Filled.Search)
 )
 
-data class MediaItem(val title: String, val imageUrl: String)
+data class MediaItem(val title: String, val imageUrl: String, val streamUrl: String = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
 
 val featuredMedia = listOf(
-    MediaItem("Conexiones Perdidas", "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg"), // Example poster URLs
+    MediaItem("Conexiones Perdidas", "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg"),
     MediaItem("Batman Inicia", "https://image.tmdb.org/t/p/w500/aAwwqG1n5eGj483v29u6Q8YmYyX.jpg"),
     MediaItem("Arsenal Military", "https://image.tmdb.org/t/p/w500/6yK2bO2sO4jC9V46jI7jRz9q7E5.jpg"),
     MediaItem("Ted", "https://image.tmdb.org/t/p/w500/y6wG1z8r1yO22sR2M459pQZcQzZ.jpg"),
@@ -105,7 +106,7 @@ fun NetflixBackground() {
 fun MainScreen() {
     val configuration = LocalConfiguration.current
     val isLargeScreen = configuration.screenWidthDp > 600
-    var selectedIndex by remember { mutableIntStateOf(1) } // Default to 'Live' to match screenshot roughly
+    var selectedIndex by remember { mutableIntStateOf(1) } // Default to 'Live'
 
     Box(modifier = Modifier.fillMaxSize()) {
         NetflixBackground()
@@ -120,31 +121,31 @@ fun MainScreen() {
                 }
             }
         ) { innerPadding ->
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isLargeScreen) {
-                AppNavigationRail(selectedIndex) { selectedIndex = it }
-            }
-
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(innerPadding)
             ) {
-                TopBar()
-                Spacer(modifier = Modifier.height(24.dp))
-                FeaturedSection(isLargeScreen)
-                Spacer(modifier = Modifier.height(32.dp))
-                ContentList("Mi Lista y Contenido Destacado", featuredMedia)
-                Spacer(modifier = Modifier.height(24.dp))
+                if (isLargeScreen) {
+                    AppNavigationRail(selectedIndex) { selectedIndex = it }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp)
+                ) {
+                    TopBar()
+                    Spacer(modifier = Modifier.height(24.dp))
+                    FeaturedSection(isLargeScreen)
+                    Spacer(modifier = Modifier.height(32.dp))
+                    ContentList("Mi Lista y Contenido Destacado", featuredMedia)
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
-}
 }
 
 @Composable
@@ -226,9 +227,8 @@ fun TopBar() {
 
 @Composable
 fun FeaturedSection(isLargeScreen: Boolean = false) {
-    // Determine arrangement based on layout
-    // In a real app we might use a FlowRow or BoxWithConstraints, but since we are handling isLargeScreen we can adapt.
-    // The screenshot has a side-by-side layout (60/40 split roughly)
+    val context = LocalContext.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -241,10 +241,12 @@ fun FeaturedSection(isLargeScreen: Boolean = false) {
                 .weight(1.5f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
-                .focusableItem()
+                .focusableItem(onClick = {
+                    VlcPlayerHelper.playUrl(context, "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "En Vivo - Ciclismo")
+                })
         ) {
             AsyncImage(
-                model = "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg", // Sports backdrop
+                model = "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
                 contentDescription = "Live TV",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -291,16 +293,17 @@ fun FeaturedSection(isLargeScreen: Boolean = false) {
                 .weight(1f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
-                .focusableItem()
+                .focusableItem(onClick = {
+                    VlcPlayerHelper.playUrl(context, "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4", "Estrenos 2026 - Ted")
+                })
         ) {
             AsyncImage(
-                model = "https://image.tmdb.org/t/p/original/y6wG1z8r1yO22sR2M459pQZcQzZ.jpg", // Ted poster
+                model = "https://image.tmdb.org/t/p/original/y6wG1z8r1yO22sR2M459pQZcQzZ.jpg",
                 contentDescription = "Estrenos 2026",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
             
-            // Top Title
             Text(
                 text = "Estrenos 2026",
                 color = Color.White,
@@ -309,12 +312,10 @@ fun FeaturedSection(isLargeScreen: Boolean = false) {
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(16.dp)
-                    // Added a shadow layer for readability if background is bright
                     .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
 
-            // Bottom Title
             Text(
                 text = "ted",
                 color = Color.White,
@@ -352,12 +353,15 @@ fun ContentList(title: String, items: List<MediaItem>) {
 
 @Composable
 fun MediaCard(item: MediaItem) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .width(140.dp)
             .height(200.dp)
             .clip(RoundedCornerShape(12.dp))
-            .focusableItem()
+            .focusableItem(onClick = {
+                VlcPlayerHelper.playUrl(context, item.streamUrl, item.title)
+            })
     ) {
         AsyncImage(
             model = item.imageUrl,
@@ -366,7 +370,6 @@ fun MediaCard(item: MediaItem) {
             modifier = Modifier.fillMaxSize()
         )
         
-        // Gradient or dark overlay could be added here for better text readability
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -385,9 +388,8 @@ fun MediaCard(item: MediaItem) {
     }
 }
 
-// Custom modifier to handle focus states cleanly for TV (D-pad) and Touch
 @Composable
-fun Modifier.focusableItem(): Modifier {
+fun Modifier.focusableItem(onClick: () -> Unit = {}): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale = if (isFocused) 1.05f else 1.0f
@@ -399,7 +401,9 @@ fun Modifier.focusableItem(): Modifier {
         .clickable(
             interactionSource = interactionSource,
             indication = null
-        ) {}
+        ) {
+            onClick()
+        }
         .then(
             if (isFocused) {
                 Modifier.background(Color.White.copy(alpha = 0.1f))
