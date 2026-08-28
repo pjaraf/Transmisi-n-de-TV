@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.*
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,7 +17,12 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       MyApplicationTheme {
-        MainScreen()
+        var isLoggedIn by remember { mutableStateOf(false) }
+        if (!isLoggedIn) {
+          LoginScreen(onLoginSuccess = { isLoggedIn = true })
+        } else {
+          MainScreen()
+        }
       }
     }
   }
