@@ -1,5 +1,6 @@
 package com.example
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -32,13 +33,19 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.ui.theme.AccentRed
 import com.example.ui.theme.NavRailBackground
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.util.VLCVideoLayout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,47 +53,49 @@ import java.util.Locale
 data class NavItem(val title: String, val icon: ImageVector)
 
 val navItems = listOf(
-    NavItem("Home", Icons.Filled.PlayArrow),
-    NavItem("Live", Icons.Filled.PlayCircle),
-    NavItem("Shows", Icons.Filled.Tv),
-    NavItem("Movies", Icons.Filled.Movie),
-    NavItem("History", Icons.Filled.History),
-    NavItem("Settings", Icons.Filled.Settings),
-    NavItem("Search", Icons.Filled.Search)
+    NavItem("Inicio", Icons.Default.PlayArrow),
+    NavItem("En Vivo", Icons.Default.Tv),
+    NavItem("Series", Icons.Default.PlayCircle),
+    NavItem("Películas", Icons.Default.Movie),
+    NavItem("Buscar", Icons.Default.Search),
+    NavItem("Ajustes", Icons.Default.Settings)
 )
 
 @Composable
-fun NetflixBackground() {
-    NetflixCollageBackground()
-}
-
-@Composable
 fun MainScreen() {
-    val configuration = LocalConfiguration.current
-    val isLargeScreen = configuration.screenWidthDp > 600
-    var selectedIndex by remember { mutableIntStateOf(1) } // Default to 'Live'
-
-    val scope = rememberCoroutineScope()
+    var selectedIndex by remember { mutableIntStateOf(0) }
     var liveList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
     var vodList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
     var seriesList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val configuration = LocalConfiguration.current
+    val isLargeScreen = configuration.screenWidthDp >= 840
+
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) {
         scope.launch {
-            isLoading = true
-            liveList = XtreamRepository.getLiveStreams()
-            vodList = XtreamRepository.getVodStreams()
-            seriesList = XtreamRepository.getSeries()
-            isLoading = false
+            try {
+                val live = XtreamRepository.getLiveStreams()
+                val vod = XtreamRepository.getVodStreams()
+                val series = XtreamRepository.getSeries()
+                liveList = live
+                vodList = vod
+                seriesList = series
+            } catch (e: Exception) {
+                // handle error
+            } finally {
+                isLoading = false
+            }
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        NetflixBackground()
-
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFF141414)
+    ) {
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
@@ -110,8 +119,7 @@ fun MainScreen() {
                         .verticalScroll(rememberScrollState())
                         .padding(24.dp)
                 ) {
-                    TopBar()
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     if (isLoading) {
                         Box(
@@ -126,10 +134,9 @@ fun MainScreen() {
                         when (selectedIndex) {
                             0 -> { // Home
                                 val featuredLive = liveList.firstOrNull()
-                                val featured2026 = (vodList + seriesList).firstOrNull { it.title.contains("2026", ignoreCase = true) } ?: vodList.firstOrNull()
                                 val list2026 = (vodList + seriesList).filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList + seriesList }
 
-                                FeaturedSection(featuredLive, featured2026)
+                                FeaturedSection(featuredLive, list2026)
                                 Spacer(modifier = Modifier.height(32.dp))
                                 if (list2026.isNotEmpty()) {
                                     ContentList("Mi Lista y Contenido Destacado", list2026)
@@ -146,6 +153,22 @@ fun MainScreen() {
                             3 -> { // Movies / VOD
                                 val movies2026 = vodList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList }
                                 ContentList("Películas 2026", movies2026)
+                            }
+                            4 -> { // Search / Ajustes etc
+                                Text(
+                                    text = "Búsqueda en desarrollo",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                            5 -> {
+                                Text(
+                                    text = "Ajustes de la cuenta (${UserSession.username})",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(32.dp)
+                                )
                             }
                             else -> {
                                 Text(
@@ -223,89 +246,23 @@ fun AppBottomNavigation(selectedIndex: Int, onItemSelected: (Int) -> Unit) {
 }
 
 @Composable
-fun TopBar() {
-    val dateFormat = SimpleDateFormat("HH:mm • dd/MM/yyyy", Locale.getDefault())
-    val currentTime = dateFormat.format(Date())
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = currentTime,
-            color = TextPrimary,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-fun FeaturedSection(liveItem: XtreamItem?, vod2026Item: XtreamItem?) {
-    val context = LocalContext.current
-
+fun FeaturedSection(liveItem: XtreamItem?, list2026: List<XtreamItem>) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(280.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Left: Live TV Panel
+        // Left: Live TV Mini Player
         Box(
             modifier = Modifier
                 .weight(1.5f)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(16.dp))
-                .focusableItem(onClick = {
-                    if (liveItem != null) {
-                        VlcPlayerHelper.playUrl(context, liveItem.streamUrl, liveItem.title)
-                    }
-                })
         ) {
-            AsyncImage(
-                model = liveItem?.imageUrl ?: "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
-                contentDescription = "Live TV",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // "EN VIVO" Badge
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .background(AccentRed, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Text(
-                    text = "EN VIVO",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            
-            // Info overlay
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = liveItem?.title ?: "Transmisión en vivo",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
+            LiveMiniPlayer(liveItem)
         }
 
-        // Right: Estrenos 2026 Panel
+        // Right: Estrenos 2026 Auto-rotating Panel
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -319,57 +276,170 @@ fun FeaturedSection(liveItem: XtreamItem?, vod2026Item: XtreamItem?) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .focusableItem(onClick = {
-                        if (vod2026Item != null) {
-                            VlcPlayerHelper.playUrl(context, vod2026Item.streamUrl, vod2026Item.title)
-                        }
-                    })
-            ) {
-                AsyncImage(
-                    model = vod2026Item?.imageUrl ?: "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg",
-                    contentDescription = "Estrenos 2026",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+            RotatingEstrenosPanel(list2026)
+        }
+    }
+}
 
-                // 2026 Badge
-                Box(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .background(AccentRed, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .align(Alignment.TopStart)
-                ) {
-                    Text(
-                        text = "2026",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+@Composable
+fun LiveMiniPlayer(liveItem: XtreamItem?) {
+    val context = LocalContext.current
+    val url = liveItem?.streamUrl ?: ""
 
-                // Info overlay
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(8.dp)
-                ) {
-                    Text(
-                        text = vod2026Item?.title ?: "Estreno 2026",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
-                    )
-                }
+    val libVLC = remember { LibVLC(context, arrayListOf("--no-drop-late-frames", "--no-skip-frames", "--rtsp-tcp")) }
+    val mediaPlayer = remember { MediaPlayer(libVLC) }
+
+    DisposableEffect(url) {
+        if (url.isNotBlank()) {
+            try {
+                val media = Media(libVLC, Uri.parse(url))
+                media.setHWDecoderEnabled(true, false)
+                mediaPlayer.media = media
+                media.release()
+                mediaPlayer.play()
+            } catch (e: Exception) {
+                // fallback
             }
+        }
+        onDispose {
+            try {
+                mediaPlayer.stop()
+                mediaPlayer.detachViews()
+                mediaPlayer.release()
+                libVLC.release()
+            } catch (e: Exception) {}
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(16.dp))
+            .focusableItem(onClick = {
+                if (liveItem != null) {
+                    VlcPlayerHelper.playUrl(context, liveItem.streamUrl, liveItem.title)
+                }
+            })
+    ) {
+        if (url.isNotBlank()) {
+            AndroidView(
+                factory = { ctx ->
+                    VLCVideoLayout(ctx).apply {
+                        mediaPlayer.attachViews(this, null, false, false)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AsyncImage(
+                model = liveItem?.imageUrl ?: "https://image.tmdb.org/t/p/original/mZjZgY6ObiKtVuKVDrnS9VnuNlE.jpg",
+                contentDescription = "Live TV",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // "EN VIVO" Badge
+        Box(
+            modifier = Modifier
+                .padding(16.dp)
+                .background(AccentRed, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .align(Alignment.TopStart)
+        ) {
+            Text(
+                text = "EN VIVO",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+
+        // Info overlay
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = liveItem?.title ?: "Transmisión en vivo",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+fun RotatingEstrenosPanel(items: List<XtreamItem>) {
+    val context = LocalContext.current
+    var currentIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(items) {
+        if (items.isNotEmpty()) {
+            while (true) {
+                delay(4000)
+                currentIndex = (currentIndex + 1) % items.size
+            }
+        }
+    }
+
+    val vod2026Item = items.getOrNull(currentIndex)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(16.dp))
+            .focusableItem(onClick = {
+                if (vod2026Item != null) {
+                    VlcPlayerHelper.playUrl(context, vod2026Item.streamUrl, vod2026Item.title)
+                }
+            })
+    ) {
+        AsyncImage(
+            model = vod2026Item?.imageUrl ?: "https://image.tmdb.org/t/p/w500/8c4a8kE7PizaGQQnditMmI1xbRp.jpg",
+            contentDescription = "Estrenos 2026",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // 2026 Badge
+        Box(
+            modifier = Modifier
+                .padding(12.dp)
+                .background(AccentRed, RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .align(Alignment.TopStart)
+        ) {
+            Text(
+                text = "2026",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+
+        // Info overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(8.dp)
+        ) {
+            Text(
+                text = vod2026Item?.title ?: "Estreno 2026",
+                color = Color.White,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
         }
     }
 }

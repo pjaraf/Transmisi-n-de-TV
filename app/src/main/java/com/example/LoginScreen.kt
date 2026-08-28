@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +29,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -160,6 +163,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 }
                                 isLoading = false
                                 if (success) {
+                                    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                                    prefs.edit().putString("username", username.trim()).putString("password", password.trim()).apply()
                                     UserSession.username = username.trim()
                                     UserSession.password = password.trim()
                                     onLoginSuccess()
