@@ -3,11 +3,13 @@ package com.example
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,13 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.util.VLCVideoLayout
 
 class PlayerActivity : ComponentActivity() {
 
-    private var exoPlayer: ExoPlayer? = null
+    private var libVLC: LibVLC? = null
+    private var mediaPlayer: MediaPlayer? = null
 
     companion object {
         const val EXTRA_URL = "extra_url"
@@ -41,13 +45,21 @@ class PlayerActivity : ComponentActivity() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
         val url = intent.getStringExtra(EXTRA_URL) ?: ""
-        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Reproductor"
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Reproductor VLC"
 
-        exoPlayer = ExoPlayer.Builder(this).build().apply {
-            val mediaItem = MediaItem.fromUri(url)
-            setMediaItem(mediaItem)
-            prepare()
-            playWhenReady = true
+        val options = ArrayList<String>().apply {
+            add("--no-drop-late-frames")
+            add("--no-skip-frames")
+            add("--rtsp-tcp")
+            add("-vvv")
+        }
+        libVLC = LibVLC(this, options)
+        mediaPlayer = MediaPlayer(libVLC).apply {
+            val media = Media(libVLC, Uri.parse(url))
+            media.setHWDecoderEnabled(true, false)
+            this.media = media
+            media.release()
+            play()
         }
 
         setContent {
@@ -58,9 +70,8 @@ class PlayerActivity : ComponentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AndroidView(
                         factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                player = exoPlayer
-                                useController = true
+                            VLCVideoLayout(ctx).apply {
+                                mediaPlayer?.attachViews(this, null, false, false)
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -71,7 +82,7 @@ class PlayerActivity : ComponentActivity() {
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(16.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -87,7 +98,11 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        exoPlayer?.release()
-        exoPlayer = null
+        mediaPlayer?.stop()
+        mediaPlayer?.detachViews()
+        mediaPlayer?.release()
+        libVLC?.release()
+        mediaPlayer = null
+        libVLC = null
     }
 }
