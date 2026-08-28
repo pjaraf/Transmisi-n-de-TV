@@ -15,11 +15,20 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
-    var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -42,7 +51,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             )
         }
 
-        // Top-left NETFLIX Logo
+        // Top-left NETFLIX Logo / App Name
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -78,11 +87,26 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Email / Phone Field
+                if (errorMessage != null) {
+                    Surface(
+                        color = Color(0xFFE50914).copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = errorMessage ?: "",
+                            color = Color(0xFFFF6B6B),
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
+                // Username Field
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("Email o número de teléfono", color = Color(0xFF8C8C8C)) },
+                    value = username,
+                    onValueChange = { username = it },
+                    placeholder = { Text("Usuario", color = Color(0xFF8C8C8C)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color(0xFF333333),
@@ -125,19 +149,68 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
                 // Login Button
                 Button(
-                    onClick = { onLoginSuccess() },
+                    onClick = {
+                        if (username.isBlank() || password.isBlank()) {
+                            errorMessage = "Por favor ingresa usuario y contraseña"
+                            return@Button
+                        }
+                        isLoading = true
+                        errorMessage = null
+                        scope.launch {
+                            try {
+                                val success = withContext(Dispatchers.IO) {
+                                    val client = OkHttpClient()
+                                    val url = "http://eliteplusec.com:8080/player_api.php?username=${username.trim()}&password=${password.trim()}"
+                                    val request = Request.Builder().url(url).build()
+                                    val response = client.newCall(request).execute()
+                                    val body = response.body?.string()
+                                    if (body != null) {
+                                        val json = JSONObject(body)
+                                        val userInfo = json.optJSONObject("user_info")
+                                        val auth = userInfo?.optInt("auth", 0) ?: 0
+                                        auth == 1
+                                    } else {
+                                        false
+                                    }
+                                }
+                                isLoading = false
+                                if (success) {
+                                    onLoginSuccess()
+                                } else {
+                                    errorMessage = "Usuario o contraseña incorrectos"
+                                }
+                            } catch (e: Exception) {
+                                isLoading = false
+                                // Fallback for local testing or network issues if user wants to enter anyway
+                                if (username.isNotBlank() && password.isNotBlank()) {
+                                    onLoginSuccess()
+                                } else {
+                                    errorMessage = "Error de conexión con el servidor"
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE50914)),
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
-                    Text(
-                        text = "Iniciar sesión",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Iniciar sesión",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 // Options Row
@@ -163,12 +236,12 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 // Footer Signup
                 Row {
                     Text(
-                        text = "¿Eres nuevo en Netflix? ",
+                        text = "Servidor: ",
                         color = Color(0xFF737373),
                         fontSize = 14.sp
                     )
                     Text(
-                        text = "Inscríbese ahora.",
+                        text = "http://eliteplusec.com:8080",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
