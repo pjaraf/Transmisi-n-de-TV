@@ -26,7 +26,10 @@ object GitHubUpdater {
     private const val GITHUB_OWNER = "pjaraf"
     private const val GITHUB_REPO = "Transmisi-n-de-TV"
     
-    fun checkForUpdates(context: Context) {
+    fun checkForUpdates(context: Context, showToastOnUpToDate: Boolean = false) {
+        if (showToastOnUpToDate) {
+            Toast.makeText(context, "Buscando actualizaciones...", Toast.LENGTH_SHORT).show()
+        }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val client = OkHttpClient()
@@ -54,19 +57,31 @@ object GitHubUpdater {
                         }
 
                         val currentVersion = BuildConfig.VERSION_NAME
-                        // Comparación simple de versión
                         val cleanLatest = tagName.replace("v", "")
                         val cleanCurrent = currentVersion.replace("v", "")
                         
-                        if (cleanLatest != cleanCurrent && downloadUrl != null) {
-                            withContext(Dispatchers.Main) {
+                        withContext(Dispatchers.Main) {
+                            if (cleanLatest != cleanCurrent && downloadUrl != null) {
                                 showUpdateDialog(context, tagName, downloadUrl)
+                            } else if (showToastOnUpToDate) {
+                                Toast.makeText(context, "Ya tienes la última versión ($currentVersion)", Toast.LENGTH_LONG).show()
                             }
+                        }
+                    }
+                } else {
+                    if (showToastOnUpToDate) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "No hay lanzamientos disponibles en GitHub (o repositorio privado/sin releases)", Toast.LENGTH_LONG).show()
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e("GitHubUpdater", "Error verificando actualizaciones", e)
+                if (showToastOnUpToDate) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error de red al verificar actualizaciones", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }
