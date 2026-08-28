@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "TV Stream"
+rootProject.name = "fitgo"
 
 include(":app")

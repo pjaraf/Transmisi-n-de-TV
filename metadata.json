@@ -1,5 +1,5 @@
 {
-  "name": "TV Stream",
+  "name": "fitgo",
   "description": "A multi-device streaming application interface for Android TV, generic TV boxes, and phones.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
