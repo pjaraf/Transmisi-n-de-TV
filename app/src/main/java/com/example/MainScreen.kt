@@ -7,13 +7,15 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
@@ -29,7 +31,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,7 +38,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.ui.theme.AccentRed
-import com.example.ui.theme.NavRailBackground
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
@@ -46,9 +46,6 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 data class NavItem(val title: String, val icon: ImageVector)
 
@@ -69,8 +66,13 @@ fun MainScreen() {
     var seriesList by remember { mutableStateOf<List<XtreamItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    val configuration = LocalConfiguration.current
-    val isLargeScreen = configuration.screenWidthDp >= 840
+    // Full screen expansion for Live TV
+    var isFullScreenLive by remember { mutableStateOf(false) }
+    var currentLiveIndex by remember { mutableIntStateOf(0) }
+
+    // Overlays when in full screen Live TV
+    var showChannelsSidebar by remember { mutableStateOf(false) }
+    var showCategoriesSidebar by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -91,33 +93,148 @@ fun MainScreen() {
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF141414)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF141414))
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets.safeDrawing,
-            bottomBar = {
-                if (!isLargeScreen) {
-                    AppBottomNavigation(selectedIndex) { selectedIndex = it }
-                }
-            }
-        ) { innerPadding ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                if (isLargeScreen) {
-                    AppNavigationRail(selectedIndex) { selectedIndex = it }
+        if (isFullScreenLive) {
+            val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Expanded Fullscreen Video Player
+                LiveFullScreenPlayer(
+                    liveItem = activeLive,
+                    onToggleChannels = { showChannelsSidebar = !showChannelsSidebar },
+                    onToggleCategories = { showCategoriesSidebar = !showCategoriesSidebar },
+                    onExitFullScreen = { isFullScreenLive = false }
+                )
+
+                // Left Floating Sidebar: Channels
+                if (showChannelsSidebar) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 24.dp)
+                            .width(320.dp)
+                            .fillMaxHeight(0.85f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.9f))
+                            .padding(16.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = "Canales en Vivo",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(liveList.size) { index ->
+                                    val channel = liveList[index]
+                                    val isCurrent = index == currentLiveIndex
+                                    Surface(
+                                        color = if (isCurrent) AccentRed else Color(0xFF222222),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .focusableItem(onClick = {
+                                                currentLiveIndex = index
+                                                showChannelsSidebar = false
+                                            })
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = channel.title,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
+                // Right Floating Sidebar: Categories / Quick Navigation
+                if (showCategoriesSidebar) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 24.dp)
+                            .width(280.dp)
+                            .fillMaxHeight(0.7f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.9f))
+                            .padding(16.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = "Categorías",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(navItems.size) { index ->
+                                    val item = navItems[index]
+                                    Surface(
+                                        color = Color(0xFF222222),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .focusableItem(onClick = {
+                                                showCategoriesSidebar = false
+                                                isFullScreenLive = false
+                                                selectedIndex = index
+                                            })
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                            Text(
+                                                text = item.title,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Floating Floating Sidebar (Left)
+                FloatingNavigationSidebar(selectedIndex) { selectedIndex = it }
+
+                // Main Content Area
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(24.dp)
+                        .padding(horizontal = 32.dp, vertical = 24.dp)
                 ) {
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -133,10 +250,16 @@ fun MainScreen() {
                     } else {
                         when (selectedIndex) {
                             0 -> { // Home
-                                val featuredLive = liveList.firstOrNull()
+                                val activeLive = liveList.getOrNull(currentLiveIndex) ?: liveList.firstOrNull()
                                 val list2026 = (vodList + seriesList).filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList + seriesList }
 
-                                FeaturedSection(featuredLive, list2026)
+                                FeaturedSection(
+                                    liveItem = activeLive,
+                                    list2026 = list2026,
+                                    onExpandLive = { isFullScreenLive = true },
+                                    onLiveChanged = { currentLiveIndex = it },
+                                    liveList = liveList
+                                )
                                 Spacer(modifier = Modifier.height(32.dp))
                                 if (list2026.isNotEmpty()) {
                                     ContentList("Mi Lista y Contenido Destacado", list2026)
@@ -154,7 +277,7 @@ fun MainScreen() {
                                 val movies2026 = vodList.filter { it.title.contains("2026", ignoreCase = true) }.ifEmpty { vodList }
                                 ContentList("Películas 2026", movies2026)
                             }
-                            4 -> { // Search / Ajustes etc
+                            4 -> { // Search
                                 Text(
                                     text = "Búsqueda en desarrollo",
                                     color = Color.White,
@@ -162,17 +285,9 @@ fun MainScreen() {
                                     modifier = Modifier.padding(32.dp)
                                 )
                             }
-                            5 -> {
+                            5 -> { // Settings
                                 Text(
                                     text = "Ajustes de la cuenta (${UserSession.username})",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    modifier = Modifier.padding(32.dp)
-                                )
-                            }
-                            else -> {
-                                Text(
-                                    text = "Sección en desarrollo",
                                     color = Color.White,
                                     style = MaterialTheme.typography.titleLarge,
                                     modifier = Modifier.padding(32.dp)
@@ -188,78 +303,104 @@ fun MainScreen() {
 }
 
 @Composable
-fun AppNavigationRail(selectedIndex: Int, onItemSelected: (Int) -> Unit) {
-    NavigationRail(
-        containerColor = NavRailBackground,
-        modifier = Modifier.fillMaxHeight(),
-        header = { Spacer(modifier = Modifier.height(16.dp)) }
+fun FloatingNavigationSidebar(selectedIndex: Int, onItemSelected: (Int) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .padding(16.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        navItems.forEachIndexed { index, item ->
-            val isSelected = selectedIndex == index
-            NavigationRailItem(
-                selected = isSelected,
-                onClick = { onItemSelected(index) },
-                icon = {
+        Column(
+            modifier = Modifier
+                .width(72.dp)
+                .clip(RoundedCornerShape(36.dp))
+                .background(Color.Black.copy(alpha = 0.75f))
+                .padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            navItems.forEachIndexed { index, item ->
+                val isSelected = selectedIndex == index
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) AccentRed else Color.Transparent)
+                        .focusableItem(onClick = { onItemSelected(index) }),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.title,
-                        modifier = Modifier.size(28.dp)
-                    )
-                },
-                colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = Color.White,
-                    unselectedIconColor = TextSecondary,
-                    indicatorColor = if (isSelected) AccentRed else Color.Transparent
-                ),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun AppBottomNavigation(selectedIndex: Int, onItemSelected: (Int) -> Unit) {
-    NavigationBar(
-        containerColor = NavRailBackground,
-        modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-    ) {
-        navItems.forEachIndexed { index, item ->
-            val isSelected = selectedIndex == index
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onItemSelected(index) },
-                icon = {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,
-                    unselectedIconColor = TextSecondary,
-                    indicatorColor = if (isSelected) AccentRed else Color.Transparent
-                )
-            )
+                }
+            }
         }
     }
 }
 
 @Composable
-fun FeaturedSection(liveItem: XtreamItem?, list2026: List<XtreamItem>) {
+fun FeaturedSection(
+    liveItem: XtreamItem?,
+    list2026: List<XtreamItem>,
+    onExpandLive: () -> Unit,
+    onLiveChanged: (Int) -> Unit,
+    liveList: List<XtreamItem>
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(280.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Left: Live TV Mini Player
-        Box(
+        // Left: Live TV Mini Player with Channel Carousel below it
+        Column(
             modifier = Modifier
                 .weight(1.5f)
                 .fillMaxHeight()
         ) {
-            LiveMiniPlayer(liveItem)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                LiveMiniPlayer(liveItem, onExpandLive)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            // Channel Carousel directly below the Mini Player
+            if (liveList.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(liveList.size) { index ->
+                        val channel = liveList[index]
+                        val isSelected = channel.streamUrl == liveItem?.streamUrl
+                        Surface(
+                            color = if (isSelected) AccentRed else Color(0xFF222222),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .height(36.dp)
+                                .focusableItem(onClick = { onLiveChanged(index) })
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = channel.title,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Right: Estrenos 2026 Auto-rotating Panel
@@ -282,7 +423,7 @@ fun FeaturedSection(liveItem: XtreamItem?, list2026: List<XtreamItem>) {
 }
 
 @Composable
-fun LiveMiniPlayer(liveItem: XtreamItem?) {
+fun LiveMiniPlayer(liveItem: XtreamItem?, onExpandLive: () -> Unit) {
     val context = LocalContext.current
     val url = liveItem?.streamUrl ?: ""
 
@@ -297,9 +438,7 @@ fun LiveMiniPlayer(liveItem: XtreamItem?) {
                 mediaPlayer.media = media
                 media.release()
                 mediaPlayer.play()
-            } catch (e: Exception) {
-                // fallback
-            }
+            } catch (e: Exception) {}
         }
         onDispose {
             try {
@@ -316,9 +455,7 @@ fun LiveMiniPlayer(liveItem: XtreamItem?) {
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
             .focusableItem(onClick = {
-                if (liveItem != null) {
-                    VlcPlayerHelper.playUrl(context, liveItem.streamUrl, liveItem.title)
-                }
+                onExpandLive()
             })
     ) {
         if (url.isNotBlank()) {
@@ -371,6 +508,94 @@ fun LiveMiniPlayer(liveItem: XtreamItem?) {
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
+        }
+    }
+}
+
+@Composable
+fun LiveFullScreenPlayer(
+    liveItem: XtreamItem?,
+    onToggleChannels: () -> Unit,
+    onToggleCategories: () -> Unit,
+    onExitFullScreen: () -> Unit
+) {
+    val context = LocalContext.current
+    val url = liveItem?.streamUrl ?: ""
+
+    val libVLC = remember { LibVLC(context, arrayListOf("--no-drop-late-frames", "--no-skip-frames", "--rtsp-tcp")) }
+    val mediaPlayer = remember { MediaPlayer(libVLC) }
+
+    DisposableEffect(url) {
+        if (url.isNotBlank()) {
+            try {
+                val media = Media(libVLC, Uri.parse(url))
+                media.setHWDecoderEnabled(true, false)
+                mediaPlayer.media = media
+                media.release()
+                mediaPlayer.play()
+            } catch (e: Exception) {}
+        }
+        onDispose {
+            try {
+                mediaPlayer.stop()
+                mediaPlayer.detachViews()
+                mediaPlayer.release()
+                libVLC.release()
+            } catch (e: Exception) {}
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        if (url.isNotBlank()) {
+            AndroidView(
+                factory = { ctx ->
+                    VLCVideoLayout(ctx).apply {
+                        mediaPlayer.attachViews(this, null, false, false)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        // Toggle or show UI options
+                    }
+            )
+        }
+
+        // Floating Action Buttons on FullScreen (Channels & Categories & Exit)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = { onToggleChannels() },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentRed)
+            ) {
+                Icon(Icons.Default.Tv, contentDescription = "Canales")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Canales")
+            }
+
+            Button(
+                onClick = { onToggleCategories() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333))
+            ) {
+                Icon(Icons.Default.List, contentDescription = "Categorías")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Categorías")
+            }
+
+            Button(
+                onClick = { onExitFullScreen() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF555555))
+            ) {
+                Text("Salir")
+            }
         }
     }
 }
