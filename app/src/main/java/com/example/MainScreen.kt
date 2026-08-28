@@ -98,19 +98,7 @@ val featuredMedia = listOf(
 
 @Composable
 fun NetflixBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        AsyncImage(
-            model = "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.82f))
-        )
-    }
+    NetflixCollageBackground()
 }
 
 @Composable

@@ -36,20 +36,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             .background(Color.Black)
     ) {
         // Background Movie Poster Collage / Grid
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            // Dark overlay to dim posters just like Netflix
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.82f))
-            )
-        }
+        NetflixCollageBackground()
 
         // Top-left NETFLIX Logo / App Name
         Box(
