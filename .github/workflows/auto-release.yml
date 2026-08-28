@@ -26,12 +26,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Prepare environment (Keystore & Env)
+        run: |
+          base64 -d debug.keystore.base64 > debug.keystore
+          cp .env.example .env
+
       - name: Generate Version Tag
         id: version_tag
         run: echo "tag=v$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
 
       - name: Build Debug APK
-        run: gradle assembleDebug -PversionCode=${{ github.run_number }} -PversionName="${{ steps.version_tag.outputs.tag }}"
+        run: chmod +x gradlew && ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName="${{ steps.version_tag.outputs.tag }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

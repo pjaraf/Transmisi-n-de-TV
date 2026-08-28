@@ -24,7 +24,7 @@ import java.io.File
 object GitHubUpdater {
     // Configuración del repositorio en GitHub para actualizaciones
     private const val GITHUB_OWNER = "pjaraf"
-    private const val GITHUB_REPO = "TV-Broadcast"
+    private const val GITHUB_REPO = "Transmisi-n-de-TV"
     
     fun checkForUpdates(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
